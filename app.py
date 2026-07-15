@@ -35,6 +35,9 @@ def setup_session_state():
 
     if "mongodb_uri" not in st.session_state:
         st.session_state["mongodb_uri"] = st.secrets.get("MONGODB_CONNECTION_STRING", "")
+        
+    if "mongodb_database_name" not in st.session_state:
+        st.session_state["mongodb_database_name"] = st.secrets.get("MONGODB_DATABASE_NAME", "")
 
     # Set up OpenAI client
     try:
@@ -64,7 +67,7 @@ def login_page():
 
     if st.button("Login", use_container_width=True):
         if identifier and len(identifier.strip()) >= 3:
-            if check_identifier(st.session_state.get("mongodb_uri", ""), identifier):
+            if check_identifier(st.session_state.get("mongodb_uri", ""), st.session_state.get("mongodb_database_name", ""), identifier):
                 st.session_state["user_identifier"] = identifier
                 st.session_state["logged_in"] = True
                 st.success("✅ Login successful! Redirecting to chat...")
@@ -86,11 +89,11 @@ def chat_page(client):
     col1, col2, col3 = st.columns([1, 1, 1])
     with col3:
         if st.button("Logout", key="logout") and st.session_state.chat_history and not st.session_state.conversation_finished:
-            st.session_state.conversation_finished = True
+            st.session_state.conversation_finished = True 
             st.session_state["logged_in"] = False
             session_id = log_transcript(
                 st.session_state["mongodb_uri"],
-                "em",
+                st.session_state["mongodb_database_name"],
                 st.session_state.chat_history
             )
             st.session_state.session_id = session_id 

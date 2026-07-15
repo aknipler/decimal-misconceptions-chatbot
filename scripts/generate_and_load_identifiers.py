@@ -2,7 +2,7 @@ import pandas as pd
 from pymongo import MongoClient
 from pymongo.server_api import ServerApi
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from dotenv import load_dotenv
 import hashlib
@@ -18,7 +18,7 @@ logging.basicConfig(
 def get_mongo_client(connection_string):
     return MongoClient(connection_string, server_api=ServerApi('1'))
 
-def generate_identifier(row, salt):
+def generate_identifier(row, salt, prefix):
     """Generate a unique identifier based on student information."""
     # Combine all available fields with a salt for uniqueness
     combined = ""
@@ -29,9 +29,9 @@ def generate_identifier(row, salt):
     
     # Create a hash and take first 8 characters
     hash_object = hashlib.sha256(combined.encode())
-    return f"DECMIS{hash_object.hexdigest()[:8].upper()}"
+    return f"{prefix}{hash_object.hexdigest()[:8].upper()}"
 
-def process_and_load_identifiers(input_csv_path, connection_string):
+def process_and_load_identifiers(input_csv_path, connection_string, database_name):
     """
     1. Read student data
     2. Generate identifiers
@@ -46,7 +46,8 @@ def process_and_load_identifiers(input_csv_path, connection_string):
         salt = str(uuid.uuid4())
         
         # Generate identifiers
-        df['identifier'] = df.apply(lambda row: generate_identifier(row, salt), axis=1)
+        prefix = input("Identifier prefix (BUSMAN, GENDENT, etc.): ").strip()
+        df['identifier'] = df.apply(lambda row: generate_identifier(row, salt, prefix), axis=1)
         
         # Save new CSV with identifiers
         output_path = input_csv_path.rsplit('.', 1)[0] + '_with_identifiers.csv'
@@ -55,9 +56,9 @@ def process_and_load_identifiers(input_csv_path, connection_string):
 
         # Connect to MongoDB and upload only the identifiers
         client = get_mongo_client(connection_string)
-        db = client.decmisbot
-        # db = getattr(client, db_name)
-        # Will need to define db_name somewhere globally. Env? Then db_name = os.getenv("DATABASE_NAME")
+        if(input("Is the MongoDB Database name '" + database_name + "' correct?").strip() == ("yes" or "y" or "Y" or "Yes")):
+            exit()
+        db = client[database_name]
         collection = db.valid_identifiers
 
         # Clear existing identifiers if needed
@@ -70,7 +71,7 @@ def process_and_load_identifiers(input_csv_path, connection_string):
         documents = [
             {
                 "identifier": identifier,
-                "created_at": datetime.utcnow()
+                "created_at": datetime.now(timezone.utc)
             }
             for identifier in df['identifier'].unique()
         ]
@@ -100,11 +101,14 @@ if __name__ == "__main__":
     
     # Get MongoDB connection string
     connection_string = os.getenv("MONGODB_CONNECTION_STRING")
+    database_name = os.getenv("MONGODB_DATABASE_NAME")
     if not connection_string:
         raise ValueError("MONGODB_CONNECTION_STRING not found in environment variables")
+    if not database_name:
+        raise ValueError("MONGODB_DATABASE_NAME not found in environment variables")
 
     # Get CSV path
-    csv_path = input("Enter path to CSV file containing student information: ").strip()
+    csv_path = input("Enter path to CSV file containing student information (or leave blank to make new): ").strip()
     if not csv_path:
         num_identifiers = input("This process will generate a CSV to make identifiers. How many identifiers would you like? (Leave blank to cancel) ").strip()
         if int(num_identifiers):
@@ -123,4 +127,4 @@ if __name__ == "__main__":
     elif not os.path.exists(csv_path):
         raise FileNotFoundError(f"CSV file not found: {csv_path}")
 
-    process_and_load_identifiers(csv_path, connection_string)
+    process_and_load_identifiers(csv_path, connection_string, database_name)

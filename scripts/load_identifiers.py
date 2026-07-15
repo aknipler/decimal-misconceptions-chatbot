@@ -15,7 +15,7 @@ logging.basicConfig(
 def get_mongo_client(connection_string):
     return MongoClient(connection_string, server_api=ServerApi('1'))
 
-def load_identifiers(csv_path, connection_string):
+def load_identifiers(csv_path, connection_string, database_name):
     """
     Load identifiers from CSV file into MongoDB.
     Expected CSV format: Must have a column named 'identifier'
@@ -29,7 +29,9 @@ def load_identifiers(csv_path, connection_string):
 
         # Connect to MongoDB
         client = get_mongo_client(connection_string)
-        db = client.embot
+        if(input("Is the MongoDB Database name '" + database_name + "' correct?").strip() == ("yes" or "y" or "Y" or "Yes")):
+            exit()
+        db = database_name
         collection = db.valid_identifiers
 
         # Clear existing identifiers if needed
@@ -67,12 +69,15 @@ if __name__ == "__main__":
     
     # Get MongoDB connection string
     connection_string = os.getenv("MONGODB_CONNECTION_STRING")
+    database_name = os.getenv("MONGODB_DATABASE_NAME")
     if not connection_string:
         raise ValueError("MONGODB_CONNECTION_STRING not found in environment variables")
+    if not database_name:
+        raise ValueError("MONGODB_DATABASE_NAME not found in environment variables")
 
     # Get CSV path from command line argument or use default
     csv_path = input("Enter path to CSV file: ").strip()
     if not os.path.exists(csv_path):
         raise FileNotFoundError(f"CSV file not found: {csv_path}")
 
-    load_identifiers(csv_path, connection_string)
+    load_identifiers(csv_path, connection_string, database_name)

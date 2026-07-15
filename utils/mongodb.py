@@ -1,12 +1,12 @@
 from pymongo import MongoClient
 from pymongo.server_api import ServerApi
 import streamlit as st
-from datetime import datetime
+from datetime import datetime, timezone
 
 def get_mongo_client(connection_string):
     return MongoClient(connection_string, server_api=ServerApi('1'))
 
-def check_identifier(connection_string, identifier):
+def check_identifier(connection_string, database_name, identifier):
     """Check if the identifier exists in the valid_identifiers collection."""
     # For simple chatbot, we'll make this more permissive
     # Check if identifier is not empty and has at least 3 characters
@@ -16,7 +16,7 @@ def check_identifier(connection_string, identifier):
     # Try to connect to MongoDB and check if identifier exists
     try:
         client = get_mongo_client(connection_string)
-        db = client.decmisbot
+        db = client[database_name]
         result = db.valid_identifiers.find_one({"identifier": identifier})
         return bool(result)
     except Exception:
@@ -30,15 +30,16 @@ def check_identifier(connection_string, identifier):
             pass
 
 
-def log_transcript(connection_string, conversation_type, messages):
+def log_transcript(connection_string, database_name, conversation_type, messages):
+    
     client = get_mongo_client(connection_string)
-    db = client.decmisbot
+    db = client[database_name]
     collection = db.transcripts
 
     try:
         # Create new document for previous conversation
         document = {
-            "timestamp": datetime.utcnow(),
+            "timestamp": datetime.now(timezone.utc),
             "messages": messages,
             "identifier": st.session_state.get("user_identifier", "anonymous")
         }
