@@ -94,6 +94,7 @@ def chat_page(client):
             session_id = log_transcript(
                 st.session_state["mongodb_uri"],
                 st.session_state["mongodb_database_name"],
+                "decimal_misconceptions_chatbot",
                 st.session_state.chat_history
             )
             st.session_state.session_id = session_id 
