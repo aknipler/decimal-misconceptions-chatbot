@@ -27,9 +27,9 @@ def generate_identifier(row, salt, prefix):
             combined += str(value)
     combined += salt
     
-    # Create a hash and take first 8 characters
+    # Create a hash and take first 6 characters
     hash_object = hashlib.sha256(combined.encode())
-    return f"{prefix}{hash_object.hexdigest()[:8].upper()}"
+    return f"{prefix}{hash_object.hexdigest()[:6].upper()}"
 
 def process_and_load_identifiers(input_csv_path, connection_string, database_name):
     """
